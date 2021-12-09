@@ -1,0 +1,70 @@
+gabi_project:
+  gcp:
+    name: "{PROJECT_ID}"
+    service_key_file: "./keys/{PROJECT_ID}.key.json"
+    location: "europe-west1"
+    firebase: yes
+  api:
+    - "api1"
+    - "api2"
+  custom_role:
+    - name: "pubsub_topic_list_and_publish"
+      roles:
+        - "pubsub.topics.list"
+        - "pubsub.topics.publish"
+  service_accounts:
+    - name: "service_account1"
+      roles:
+        - "roles/role1"
+        - "projects/{PROJECT_ID}/roles/pubsub_topic_list_and_publish"
+        - "roles/role2"
+    - name: "service_account2"
+      roles:
+        - "roles/role1"
+  cloud_runs:
+    - name: "cloud_run"
+      service_account: "service_account1"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "docker/{gabi_project.gcp.name}/gsc-repo/service_account1:{BUILD_VERSION}"
+      env:
+        ENVIRONMENT: "value"
+      secret:
+        CONNECTION_PASSWORD: "PASSWORD"
+  pubsub:
+    topics:
+      - name: "topic1"
+        subscriptions:
+          - name: "subscription_name"
+            cloud_run: "cloud_run"
+            service_account: "service_account2"
+  storage:
+    - name: "{gabi_project.gcp.name}-dropzone"
+      location: "EU"
+      storage_class: "MULTI_REGIONAL"
+      permission:
+        access_control: "UNIFORM"
+      not_public: true
+  sql:
+    name: "{PROJECT_ID}-sql"
+    version: "POSTGRES_13"
+    location: "europe-west1"
+    tier: "db-custom-1-3840"
+    user: "gabi_usr"
+    password: "{POSTGRES_PASSWORD}"
+    database: "tha"
+    configuration:
+      query_insight: true
+      auto_storage_increase: true
+      high_availability: true
+      maintenance_window:
+        day: 7
+        hour: 12
+      backup:
+        region: "EU"
+        duration: 7
+  secret:
+    location: "europe-west1"
+    values:
+      PASSWORD: "{gabi_project.sql.password}"
