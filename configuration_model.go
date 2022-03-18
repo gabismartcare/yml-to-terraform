@@ -111,6 +111,7 @@ type Sql struct {
 	Configuration *SqlConfiguration `yaml:"configuration"`
 }
 type SqlConfiguration struct {
+	SSL                 bool               `yaml:"ssl"`
 	QueryInsight        bool               `yaml:"query_insight"`
 	AutoStorageIncrease bool               `yaml:"auto_storage_increase"`
 	HighAvailability    bool               `yaml:"high_availability"`

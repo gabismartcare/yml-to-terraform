@@ -67,6 +67,12 @@ resource "google_project_service" "{{formatAction "gcp_services" .}}" {
                 query_insights_enabled = true
              }
             {{ end }}
+	   
+            {{ if .GabiProject.Sql.Configuration.SSL }}
+			ip_configuration {
+				require_ssl = true 
+			}
+			{{end}}
             {{ if .GabiProject.Sql.Configuration.AutoStorageIncrease }} disk_autoresize = true {{ end }}
             {{ if .GabiProject.Sql.Configuration.HighAvailability }} availability_type = "REGIONAL" 
 			backup_configuration {

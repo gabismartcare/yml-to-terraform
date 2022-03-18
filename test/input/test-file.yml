@@ -55,6 +55,7 @@ gabi_project:
     password: "{POSTGRES_PASSWORD}"
     database: "tha"
     configuration:
+      ssl: true
       query_insight: true
       auto_storage_increase: true
       high_availability: true
