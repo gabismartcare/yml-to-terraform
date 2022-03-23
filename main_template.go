@@ -45,7 +45,14 @@ resource "google_project_service" "{{formatAction "gcp_services" .}}" {
 {{ range $role, $account := .ServiceAccountMap }}
         resource "google_project_iam_binding" "{{formatAction "role" $role}}" {
           project = "{{ $projectName }}"
-          role    =  "{{ $role }}"
+	      {{ if isCustomRole $role }}
+          role =  "{{ formatCustomRole $role }}"
+	      depends_on = [
+	         google_project_iam_custom_role.{{ formatAction "custom_role" $role}}
+		  ]
+	{{else }}
+          	role =  "{{ $role }}"
+		{{ end }}
           members = [
            {{range $account }}"serviceAccount:{{.}}@{{ $projectName }}.iam.gserviceaccount.com",
            {{end}}

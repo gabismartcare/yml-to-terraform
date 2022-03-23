@@ -5,40 +5,600 @@ gabi_project:
     location: "europe-west1"
     firebase: yes
   api:
-    - "api1"
-    - "api2"
+    - "iam.googleapis.com"
+    - "storage-component.googleapis.com"
+    - "storagetransfer.googleapis.com"
+    - "pubsub.googleapis.com"
+    - "sqladmin.googleapis.com"
+    - "sql-component.googleapis.com"
+    - "containerregistry.googleapis.com"
+    - "run.googleapis.com"
+    - "secretmanager.googleapis.com"
+    - "firebase.googleapis.com"
+    - "cloudbuild.googleapis.com"
+    - "servicecontrol.googleapis.com"
   custom_role:
     - name: "pubsub_topic_list_and_publish"
       roles:
         - "pubsub.topics.list"
         - "pubsub.topics.publish"
+    - name: "storage_read"
+      roles:
+        - "storage.objects.get"
+        - "storage.objects.list"
+    - name: "storage_write"
+      roles:
+        - "storage.objects.list"
+        - "storage.objects.create"
+        - "storage.objects.delete"
+        - "storage.objects.get"
   service_accounts:
-    - name: "service_account1"
+    - name: "bands-eventhandler"
       roles:
-        - "roles/role1"
-        - "projects/{PROJECT_ID}/roles/pubsub_topic_list_and_publish"
-        - "roles/role2"
-    - name: "service_account2"
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+        - "roles/run.invoker"
+    - name: "bands-queryhandler"
       roles:
-        - "roles/role1"
+        - "roles/cloudsql.client"
+        - "storage_read"
+    - name: "connector-commandhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "storage_write"
+        - "pubsub_topic_list_and_publish"
+    - name: "connector-eventhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "roles/run.invoker"
+        - "pubsub_topic_list_and_publish"
+    - name: "patient-queryhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "storage_write"
+    - name: "patient-commandhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+    - name: "group-commandhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+    - name: "group-queryhandler"
+      roles:
+        - "roles/cloudsql.client"
+    - name: "group-eventhandler"
+      roles:
+        - "roles/cloudsql.client"
+    - name: "signals-commandhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "storage_write"
+        - "pubsub_topic_list_and_publish"
+    - name: "bands-commandhandler"
+      roles:
+        - "pubsub_topic_list_and_publish"
+        - "roles/cloudsql.client"
+        - "storage_write"
+    - name: "signals-eventhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+        - "roles/run.invoker"
+    - name: "signals-queryhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "storage_write"
+    - name: "patient-eventhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+    - name: "patient-orchestration"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+        - "roles/run.invoker"
+    - name: "pubsub-pusher"
+      roles:
+        - "pubsub_topic_list_and_publish"
+        - "roles/run.invoker"
+    - name: "storage-eventhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+        - "roles/firebasestorage.viewer"
+        - "storage_write"
+    - name: "pediarity-eventlogger"
+      roles:
+        - "roles/cloudsql.client"
+    - name: "hcp-eventhandler"
+      roles:
+        - "pubsub_topic_list_and_publish"
+        - "roles/cloudsql.client"
+        - "roles/run.invoker"
+    - name: "hcp-queryhandler"
+      roles:
+        - "roles/cloudsql.client"
+    - name: "hcp-commandhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
+    - name: "caregiver-queryhandler"
+      roles:
+        - "roles/cloudsql.client"
+    - name: "caregiver-commandhandler"
+      roles:
+        - "roles/cloudsql.client"
+        - "pubsub_topic_list_and_publish"
   cloud_runs:
-    - name: "cloud_run"
-      service_account: "service_account1"
+    - name: "bands-commandhandler"
+      service_account: "bands-commandhandler"
       allow_unauthenticated: no
       location: "europe-west1"
       sql_instance: "google_sql_database_instance"
-      image: "docker/{gabi_project.gcp.name}/gsc-repo/service_account1:{BUILD_VERSION}"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/bands-commandhandler:{BUILD_VERSION}"
       env:
-        ENVIRONMENT: "value"
+        START: "COMMANDHANDLER"
+        BACKEND_BUCKET: "{gabi_project.gcp.name}-backend"
+        BACKEND_DIR: ""
+        BACKEND_STORAGE: "GCP"
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
       secret:
-        CONNECTION_PASSWORD: "PASSWORD"
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "bands-eventhandler"
+      service_account: "bands-eventhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      memory: "512Mi"
+      cpu: 1
+      max_instances: 1
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/bands-eventhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+        BANDS_COMMANDHANDLER_URL: "{{cloudRunUrl bands-commandhandler}}"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "bands-queryhandler"
+      service_account: "bands-queryhandler"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/bands-queryhandler:{BUILD_VERSION}"
+      env:
+        BACKEND_BUCKET: "{gabi_project.gcp.name}-backend"
+        BACKEND_DIR: ""
+        BACKEND_STORAGE: "GCP"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+        STORAGE: "GCP"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "connector-commandhandler"
+      service_account: "connector-commandhandler"
+      sql_instance: "google_sql_database_instance"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/connector-commandhandler:{BUILD_VERSION}"
+      env:
+        BACKEND_BUCKET: "{gabi_project.gcp.name}-backend"
+        BACKEND_DIR: ""
+        BACKEND_STORAGE: "GCP"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+        EVENTBUS: "PUB_SUB"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "connector-eventhandler"
+      service_account: "connector-eventhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/connector-eventhandler:{BUILD_VERSION}"
+      env:
+        CONNECTOR_COMMANDHANDLER_URL: "{{cloudRunUrl connector-commandhandler}}"
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "group-commandhandler"
+      service_account: "group-commandhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/group-commandhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        SQL_CONN: "CLOUD_SQL"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "group-eventhandler"
+      service_account: "group-eventhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/group-eventhandler:{BUILD_VERSION}"
+      env:
+        GROUPS_COMMANDHANDLER_URL: "{{cloudRunUrl group-commandhandler}}"
+        EVENTBUS: "PUB_SUB"
+        SQL_CONN: "CLOUD_SQL"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "group-queryhandler"
+      service_account: "group-queryhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/group-queryhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        SQL_CONN: "CLOUD_SQL"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "patient-eventhandler"
+      service_account: "patient-eventhandler"
+      allow_unauthenticated: "no"
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/patient-eventhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "patient-queryhandler"
+      service_account: "patient-queryhandler"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/patient-queryhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "patient-commandhandler"
+      service_account: "patient-commandhandler"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/patient-commandhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "pediarity-eventlogger"
+      service_account: "pediarity-eventlogger"
+      allow_unauthenticated: "no"
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/eventlogger:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+        AGGREGATES: "bands;connectors;groups;patients;signals;storage;users"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "signals-commandhandler"
+      service_account: "signals-commandhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/signals-commandhandler:{BUILD_VERSION}"
+      env:
+        BACKEND_BUCKET: "{gabi_project.gcp.name}-backend"
+        BACKEND_DIR: ""
+        BACKEND_STORAGE: "GCP"
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "signals-eventhandler"
+      service_account: "signals-eventhandler"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/signals-eventhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SIGNAL_COMMANDHANDLER_URL: "{{cloudRunUrl signals-commandhandler}}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "patient-orchestration"
+      service_account: "patient-orchestration"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/orchestration:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        GROUPS_COMMANDHANDLER_URL: "{{cloudRunUrl group-commandhandler}}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "signals-queryhandler"
+      service_account: "signals-queryhandler"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/signals-queryhandler:{BUILD_VERSION}"
+      env:
+        BACKEND_BUCKET: "{gabi_project.gcp.name}-backend"
+        BACKEND_STORAGE: "GCP"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "storage-eventhandler"
+      sql_instance: "google_sql_database_instance"
+      service_account: "storage-eventhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/storage-eventhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        BACKEND_BUCKET: "{gabi_project.gcp.name}-backend"
+        BACKEND_DIR: ""
+        BACKEND_STORAGE: "GCP"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "hcp-commandhandler"
+      service_account: "hcp-commandhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/hcp-commandhandler:{BUILD_VERSION}"
+      env:
+        START: "COMMANDHANDLER"
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "hcp-eventhandler"
+      service_account: "hcp-eventhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      memory: "512Mi"
+      cpu: 1
+      max_instances: 1
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/hcp-eventhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        SQL_CONN: "CLOUD_SQL"
+        HCP_COMMANDHANDLER_URL: "{{cloudRunUrl hcp-commandhandler}}"
+        AUTH_DOMAIN: "{AUTH_DOMAIN}"
+        AUTH_CLIENT_ID: "{AUTH_CLIENT_ID}"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+        AUTH_CLIENT_SECRET: "AUTH_CLIENT_SECRET"
+    - name: "hcp-queryhandler"
+      service_account: "hcp-queryhandler"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/hcp-queryhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "caregiver-commandhandler"
+      service_account: "caregiver-commandhandler"
+      allow_unauthenticated: no
+      location: "europe-west1"
+      sql_instance: "google_sql_database_instance"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/caregiver-commandhandler:{BUILD_VERSION}"
+      env:
+        START: "COMMANDHANDLER"
+        EVENTBUS: "PUB_SUB"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
+    - name: "caregiver-queryhandler"
+      service_account: "caregiver-queryhandler"
+      allow_unauthenticated: no
+      sql_instance: "google_sql_database_instance"
+      location: "europe-west1"
+      image: "europe-west1-docker.pkg.dev/{gabi_project.gcp.name}/gsc-repo/caregiver-queryhandler:{BUILD_VERSION}"
+      env:
+        EVENTBUS: "PUB_SUB"
+        INSTANCE_CONNECTION_NAME: "{gabi_project.gcp.name}:{gabi_project.sql.location}:{gabi_project.sql.name}"
+        POSTGRES_URL: "{{databaseUrl {gabi_project.sql.name} }}"
+        POSTGRES_USERNAME: "{gabi_project.sql.user}"
+        PROJECT_ID: "{gabi_project.gcp.name}"
+        SQL_CONN: "CLOUD_SQL"
+        EVENTLOG_PERSISTENCE: "CLOUD_SQL"
+      secret:
+        POSTGRES_PASSWORD: "POSTGRES_PASSWORD"
   pubsub:
     topics:
-      - name: "topic1"
+      - name: "storage"
         subscriptions:
-          - name: "subscription_name"
-            cloud_run: "cloud_run"
-            service_account: "service_account2"
+          - name: "storage-connector-eventhandler"
+            cloud_run: "connector-eventhandler"
+            service_account: "pubsub-pusher"
+          - name: "storage-bands-eventhandler"
+            cloud_run: "bands-eventhandler"
+            service_account: "pubsub-pusher"
+          - name: "storage-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+      - name: "connectors"
+        subscriptions:
+          - name: "connector-connector-eventhandler"
+            cloud_run: "connector-eventhandler"
+            service_account: "pubsub-pusher"
+          - name: "connector-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+      - name: "signals"
+        subscriptions:
+          - name: "signals-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+      - name: "patients"
+        subscriptions:
+          - name: "patient-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+          - name: "patient-patient-orchestration"
+            cloud_run: "patient-orchestration"
+            service_account: "pubsub-pusher"
+          - name: "patient-patient-eventhandler"
+            cloud_run: "patient-eventhandler"
+            service_account: "pubsub-pusher"
+          - name: "patient-signals-eventhandler"
+            cloud_run: "signals-eventhandler"
+            service_account: "pubsub-pusher"
+      - name: "groups"
+        subscriptions:
+          - name: "group-patient-orchestration"
+            cloud_run: "patient-orchestration"
+            service_account: "pubsub-pusher"
+          - name: "group-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+          - name: "group-group-eventhandler"
+            cloud_run: "group-eventhandler"
+            service_account: "pubsub-pusher"
+          - name: "group-patient-eventhandler"
+            cloud_run: "patient-eventhandler"
+            service_account: "pubsub-pusher"
+      - name: "bands"
+        subscriptions:
+          - name: "bands-bands-eventhandler"
+            cloud_run: "bands-eventhandler"
+            service_account: "pubsub-pusher"
+          - name: "bands-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+          - name: "bands-patient-eventhandler"
+            cloud_run: "patient-eventhandler"
+            service_account: "pubsub-pusher"
+      - name: "hcp"
+        subscriptions:
+          - name: "hcp-hcp-eventhandler"
+            cloud_run: "hcp-eventhandler"
+            service_account: "pubsub-pusher"
+          - name: "hcp-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+      - name: "caregiver"
+        subscriptions:
+          - name: "caregiver-pediarity-eventlogger"
+            cloud_run: "pediarity-eventlogger"
+            service_account: "pubsub-pusher"
+      - name: "filecreatedongcpbucket"
+        subscriptions:
+          - name: "gsc-file-pushed-on-gcs"
+            cloud_run: "storage-eventhandler"
+            service_account: "pubsub-pusher"
   storage:
     - name: "{gabi_project.gcp.name}-dropzone"
       location: "EU"
@@ -46,6 +606,42 @@ gabi_project:
       permission:
         access_control: "UNIFORM"
       not_public: true
+      backup:
+        - dst_bucket: "{gabi_project.gcp.name}-backup"
+          dst_path: "gcs/{gabi_project.gcp.name}-dropzone/weekly/"
+          start_date: "2021-12-02"
+          run_every: "weekly"
+        - dst_bucket: "{gabi_project.gcp.name}-backup"
+          dst_path: "gcs/{gabi_project.gcp.name}-dropzone/daily/"
+          run_every: "daily"
+          start_date: "2021-12-02"
+    - name: "{gabi_project.gcp.name}-backend"
+      location: "EU"
+      storage_class: "MULTI_REGIONAL"
+      permission:
+        access_control: "UNIFORM"
+      not_public: true
+      object_versioning:
+        max_version: 5
+        duration: 7
+      backup:
+        - dst_bucket: "{gabi_project.gcp.name}-backup"
+          dst_path: "gcs/{gabi_project.gcp.name}-backend/weekly/"
+          start_date: "2021-12-02"
+          run_every: "weekly"
+        - dst_bucket: "{gabi_project.gcp.name}-backup"
+          dst_path: "gcs/{gabi_project.gcp.name}-backend/daily/"
+          run_every: "daily"
+          start_date: "2021-12-02"
+    - name: "{gabi_project.gcp.name}-backup"
+      location: "europe-west1"
+      storage_class: "NEARLINE"
+      permission:
+        access_control: "UNIFORM"
+      not_public: true
+      object_versioning:
+        max_version: 5
+        duration: 30
   sql:
     name: "{PROJECT_ID}-sql"
     version: "POSTGRES_13"
@@ -55,7 +651,6 @@ gabi_project:
     password: "{POSTGRES_PASSWORD}"
     database: "tha"
     configuration:
-      ssl: true
       query_insight: true
       auto_storage_increase: true
       high_availability: true
@@ -68,4 +663,5 @@ gabi_project:
   secret:
     location: "europe-west1"
     values:
-      PASSWORD: "{gabi_project.sql.password}"
+      POSTGRES_PASSWORD: "{gabi_project.sql.password}"
+      AUTH_CLIENT_SECRET: "{AUTH_CLIENT_SECRET}"

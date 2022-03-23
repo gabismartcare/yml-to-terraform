@@ -15,6 +15,7 @@ type ProjectConfiguration struct {
 	GabiProject       GabiProject `yaml:"gabi_project"`
 	AsMap             map[string]interface{}
 	ServiceAccountMap map[string][]string
+	CustomRoles       map[string]bool
 	HasBackup         bool
 }
 type Secret struct {
@@ -45,8 +46,9 @@ type Project struct {
 }
 
 type ServiceAccount struct {
-	Name  string   `yaml:"name"`
-	Roles []string `yaml:"roles"`
+	Name   string   `yaml:"name"`
+	Roles  []string `yaml:"roles"`
+	Orphan bool     `yaml:"orphan"`
 }
 
 type CloudRun struct {
@@ -127,10 +129,6 @@ type MaintenanceWindow struct {
 	Hour int `yaml:"hour"`
 }
 
-func (s *ProjectConfiguration) ToTerraform() string {
-	return s.createTerraformScript()
-}
-
 func (s *ProjectConfiguration) getReplacers() *strings.Replacer {
 	keys := parse("", s.AsMap)
 
@@ -153,11 +151,20 @@ func databaseUrl(cloudRunName string) string {
 func cloudRunUrl(cloudRunName string) string {
 	return fmt.Sprintf("google_cloud_run_service.%s.status[0].url", getResourceName("cloudrun", cloudRunName))
 }
-func (s *ProjectConfiguration) createTerraformScript() string {
+func (s *ProjectConfiguration) createTerraformScript() (string, error) {
 	replacer := s.getReplacers()
 
 	t, err := template.New("main").Funcs(template.FuncMap{
-		"unquote":         unquote,
+		"unquote": unquote,
+		"isCustomRole": func(role string) bool {
+			return contains(s.CustomRoles, role)
+		},
+		"formatCustomRole": func(role string) string {
+			if !contains(s.CustomRoles, role) {
+				panic(fmt.Sprintf("Custom role %s not declared", role))
+			}
+			return fmt.Sprintf("projects/%s/roles/%s", s.GabiProject.Gcp.Name, role)
+		},
 		"cloudRunUrl":     cloudRunUrl,
 		"getResourceName": format,
 		"formatAction":    format,
@@ -186,13 +193,13 @@ func (s *ProjectConfiguration) createTerraformScript() string {
 		},
 	}).Parse(getTemplate())
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	var tpl bytes.Buffer
 	if err := t.Execute(&tpl, s); err != nil {
-		log.Fatal(err)
+		return "", err
 	}
-	return tpl.String()
+	return tpl.String(), nil
 }
 
 func fillEnv(replacer *strings.Replacer) func(variable string) string {
